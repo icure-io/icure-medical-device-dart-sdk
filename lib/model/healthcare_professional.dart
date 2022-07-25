@@ -31,7 +31,6 @@ class HealthcareProfessional {
     this.picture,
     this.specialityCodes = const {},
     this.notes,
-    this.publicKey,
     this.properties = const {},
     this.systemMetaData,
   });
@@ -168,8 +167,6 @@ class HealthcareProfessional {
   ///
   String? notes;
 
-  String? publicKey;
-
   Set<Property> properties;
 
   ///
@@ -202,7 +199,6 @@ class HealthcareProfessional {
           other.picture == picture &&
           SetEquality().equals(other.specialityCodes, specialityCodes) &&
           other.notes == notes &&
-          other.publicKey == publicKey &&
           SetEquality().equals(other.properties, properties) &&
           other.systemMetaData == systemMetaData;
 
@@ -227,13 +223,12 @@ class HealthcareProfessional {
       (picture == null ? 0 : picture!.hashCode) +
       (specialityCodes.hashCode) +
       (notes == null ? 0 : notes!.hashCode) +
-      (publicKey == null ? 0 : publicKey!.hashCode) +
       (properties.hashCode) +
       (systemMetaData == null ? 0 : systemMetaData!.hashCode);
 
   @override
   String toString() =>
-      'HealthcareProfessional[id=$id, rev=$rev, created=$created, modified=$modified, deletionDate=$deletionDate, name=$name, lastName=$lastName, firstName=$firstName, names=$names, gender=$gender, civility=$civility, speciality=$speciality, parentId=$parentId, addresses=$addresses, languages=$languages, picture=$picture, specialityCodes=$specialityCodes, notes=$notes, publicKey=$publicKey, properties=$properties, systemMetaData=$systemMetaData]';
+      'HealthcareProfessional[id=$id, rev=$rev, created=$created, modified=$modified, deletionDate=$deletionDate, name=$name, lastName=$lastName, firstName=$firstName, names=$names, gender=$gender, civility=$civility, speciality=$speciality, parentId=$parentId, addresses=$addresses, languages=$languages, picture=$picture, specialityCodes=$specialityCodes, notes=$notes, properties=$properties, systemMetaData=$systemMetaData]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -283,9 +278,6 @@ class HealthcareProfessional {
     if (notes != null) {
       json[r'notes'] = notes;
     }
-    if (publicKey != null) {
-      json[r'publicKey'] = publicKey;
-    }
     json[r'properties'] = properties.toList();
     if (systemMetaData != null) {
       json[r'systemMetaData'] = systemMetaData;
@@ -330,7 +322,6 @@ class HealthcareProfessional {
         picture: mapValueOfType<String>(json, r'picture'),
         specialityCodes: CodingReference.listFromJson(json[r'specialityCodes'])!.toSet(),
         notes: mapValueOfType<String>(json, r'notes'),
-        publicKey: mapValueOfType<String>(json, r'publicKey'),
         properties: Property.listFromJson(json[r'properties'])!.toSet(),
         systemMetaData: SystemMetaDataOwner.fromJson(json[r'systemMetaData']),
       );

@@ -25,7 +25,6 @@ class MedicalDevice {
     this.codes = const {},
     this.endOfLife,
     this.externalId,
-    this.publicKey,
     this.name,
     this.type,
     this.brand,
@@ -127,8 +126,6 @@ class MedicalDevice {
   ///
   String? externalId;
 
-  String? publicKey;
-
   /// Name of the device/application recording the data
   ///
   /// Please note: This property should have been non-nullable! Since the specification file
@@ -211,7 +208,6 @@ class MedicalDevice {
           SetEquality().equals(other.labels, labels) &&
           other.endOfLife == endOfLife &&
           other.externalId == externalId &&
-          other.publicKey == publicKey &&
           other.name == name &&
           other.type == type &&
           other.brand == brand &&
@@ -237,7 +233,6 @@ class MedicalDevice {
       (codes.hashCode) +
       (endOfLife == null ? 0 : endOfLife!.hashCode) +
       (externalId == null ? 0 : externalId!.hashCode) +
-      (publicKey == null ? 0 : publicKey!.hashCode) +
       (name == null ? 0 : name!.hashCode) +
       (type == null ? 0 : type!.hashCode) +
       (brand == null ? 0 : brand!.hashCode) +
@@ -250,7 +245,7 @@ class MedicalDevice {
 
   @override
   String toString() =>
-      'MedicalDevice[id=$id, rev=$rev, deletionDate=$deletionDate, identifiers=$identifiers, created=$created, modified=$modified, author=$author, responsible=$responsible, labels=$labels, codes=$codes, endOfLife=$endOfLife, externalId=$externalId, publicKey=$publicKey, name=$name, type=$type, brand=$brand, model=$model, serialNumber=$serialNumber, parentId=$parentId, picture=$picture, properties=$properties, systemMetaData=$systemMetaData]';
+      'MedicalDevice[id=$id, rev=$rev, deletionDate=$deletionDate, identifiers=$identifiers, created=$created, modified=$modified, author=$author, responsible=$responsible, labels=$labels, codes=$codes, endOfLife=$endOfLife, externalId=$externalId, name=$name, type=$type, brand=$brand, model=$model, serialNumber=$serialNumber, parentId=$parentId, picture=$picture, properties=$properties, systemMetaData=$systemMetaData]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -283,9 +278,6 @@ class MedicalDevice {
     }
     if (externalId != null) {
       json[r'externalId'] = externalId;
-    }
-    if (publicKey != null) {
-      json[r'publicKey'] = publicKey;
     }
     if (name != null) {
       json[r'name'] = name;
@@ -344,7 +336,6 @@ class MedicalDevice {
         codes: CodingReference.listFromJson(json[r'codes'])!.toSet(),
         endOfLife: mapValueOfType<int>(json, r'endOfLife'),
         externalId: mapValueOfType<String>(json, r'externalId'),
-        publicKey: mapValueOfType<String>(json, r'publicKey'),
         name: mapValueOfType<String>(json, r'name'),
         type: mapValueOfType<String>(json, r'type'),
         brand: mapValueOfType<String>(json, r'brand'),

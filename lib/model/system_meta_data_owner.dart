@@ -13,12 +13,15 @@ part of icure_medical_device_dart_sdk.api;
 class SystemMetaDataOwner {
   /// Returns a new [SystemMetaDataOwner] instance.
   SystemMetaDataOwner({
+    this.publicKey = null,
     this.hcPartyKeys = const {},
     this.privateKeyShamirPartitions = const {},
     this.aesExchangeKeys = const {},
     this.transferKeys = const {},
     this.lostHcPartyKeys = const []
   });
+
+  String? publicKey;
 
   Map<String, List<String>> hcPartyKeys;
 
@@ -34,6 +37,7 @@ class SystemMetaDataOwner {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SystemMetaDataOwner &&
+          other.publicKey == publicKey &&
           MapEquality(values: ListEquality()).equals(other.hcPartyKeys, hcPartyKeys) &&
           MapEquality().equals(other.privateKeyShamirPartitions, privateKeyShamirPartitions) &&
           MapEquality(values: MapEquality(values: ListEquality())).equals(other.aesExchangeKeys, aesExchangeKeys) &&
@@ -43,6 +47,7 @@ class SystemMetaDataOwner {
   @override
   int get hashCode =>
       // ignore: unnecessary_parenthesis
+      (publicKey == null ? 0 : publicKey.hashCode) +
       (hcPartyKeys.hashCode) +
       (privateKeyShamirPartitions.hashCode) +
       (aesExchangeKeys.hashCode) +
@@ -50,10 +55,13 @@ class SystemMetaDataOwner {
       (lostHcPartyKeys.hashCode);
 
   @override
-  String toString() => 'SystemMetaDataOwner[hcPartyKeys=$hcPartyKeys, privateKeyShamirPartitions=$privateKeyShamirPartitions, aesExchangeKeys=$aesExchangeKeys, transferKeys=$transferKeys, lostHcPartyKeys=$lostHcPartyKeys]';
+  String toString() => 'SystemMetaDataOwner[publicKey=$publicKey, hcPartyKeys=$hcPartyKeys, privateKeyShamirPartitions=$privateKeyShamirPartitions, aesExchangeKeys=$aesExchangeKeys, transferKeys=$transferKeys, lostHcPartyKeys=$lostHcPartyKeys]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (publicKey != null) {
+      json[r'publicKey'] = publicKey;
+    }
     json[r'hcPartyKeys'] = hcPartyKeys;
     json[r'privateKeyShamirPartitions'] = privateKeyShamirPartitions;
     json[r'aesExchangeKeys'] = aesExchangeKeys;
@@ -81,6 +89,7 @@ class SystemMetaDataOwner {
       }());
 
       return SystemMetaDataOwner(
+        publicKey: mapValueOfType<String>(json, r'publicKey'),
         hcPartyKeys: json[r'hcPartyKeys'] == null ? const {} : mapWithListOfStringsFromJson(json[r'hcPartyKeys']),
         privateKeyShamirPartitions: mapCastOfType<String, String>(json, r'privateKeyShamirPartitions')!,
         lostHcPartyKeys: json[r'lostHcPartyKeys'] == null ? const [] : (json[r'lostHcPartyKeys'] as List).cast<String>(),
@@ -144,6 +153,7 @@ class SystemMetaDataOwner {
 
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
+    'publicKey',
     'hcPartyKeys',
     'privateKeyShamirPartitions',
     'aesExchangeKeys',

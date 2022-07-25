@@ -43,6 +43,7 @@ extension DeviceDtoMapper on DeviceDto {
       model: this.model,
       serialNumber: this.serialNumber,
       systemMetaData: SystemMetaDataOwner(
+        publicKey: this.publicKey,
         hcPartyKeys: this.hcPartyKeys,
         privateKeyShamirPartitions: this.privateKeyShamirPartitions,
         aesExchangeKeys: this.aesExchangeKeys,
@@ -71,6 +72,7 @@ extension MedicalDeviceMapper on MedicalDevice {
     brand: this.brand,
     model: this.model,
     serialNumber: this.serialNumber,
+    publicKey: this.systemMetaData?.publicKey,
     hcPartyKeys: this.systemMetaData?.hcPartyKeys ?? const {},
     privateKeyShamirPartitions: this.systemMetaData?.privateKeyShamirPartitions ?? const {},
     aesExchangeKeys: this.systemMetaData?.aesExchangeKeys ?? const {},
@@ -78,5 +80,5 @@ extension MedicalDeviceMapper on MedicalDevice {
   );
 
   DataOwnerDto toDataOwnerDto() => DataOwnerDto(DataOwnerType.device, this.id!, this.systemMetaData?.hcPartyKeys ?? const {},
-      publicKey: this.publicKey!, parentId: this.parentId, rev: this.rev);
+      publicKey: this.systemMetaData?.publicKey!, parentId: this.parentId, rev: this.rev);
 }

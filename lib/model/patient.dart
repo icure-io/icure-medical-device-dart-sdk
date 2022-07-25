@@ -58,7 +58,6 @@ class Patient {
     this.ethnicity,
     this.picture,
     this.externalId,
-    this.publicKey,
     this.partnerships = const [],
     this.patientHealthCareParties = const [],
     this.patientProfessions = const [],
@@ -391,8 +390,6 @@ class Patient {
   ///
   String? externalId;
 
-  String? publicKey;
-
   /// List of partners, or persons of contact (of class Partnership, see below).
   List<Partnership> partnerships;
 
@@ -464,7 +461,6 @@ class Patient {
           other.ethnicity == ethnicity &&
           other.picture == picture &&
           other.externalId == externalId &&
-          other.publicKey == publicKey &&
           ListEquality().equals(other.partnerships, partnerships) &&
           ListEquality().equals(other.patientHealthCareParties, patientHealthCareParties) &&
           ListEquality().equals(other.patientProfessions, patientProfessions) &&
@@ -519,7 +515,6 @@ class Patient {
       (ethnicity == null ? 0 : ethnicity!.hashCode) +
       (picture == null ? 0 : picture!.hashCode) +
       (externalId == null ? 0 : externalId!.hashCode) +
-      (publicKey == null ? 0 : publicKey!.hashCode) +
       (partnerships.hashCode) +
       (patientHealthCareParties.hashCode) +
       (patientProfessions.hashCode) +
@@ -529,7 +524,7 @@ class Patient {
 
   @override
   String toString() =>
-      'Patient[id=$id, rev=$rev, identifiers=$identifiers, created=$created, modified=$modified, author=$author, responsible=$responsible, labels=$labels, codes=$codes, endOfLife=$endOfLife, deletionDate=$deletionDate, firstName=$firstName, lastName=$lastName, names=$names, companyName=$companyName, languages=$languages, addresses=$addresses, civility=$civility, gender=$gender, birthSex=$birthSex, mergeToPatientId=$mergeToPatientId, mergedIds=$mergedIds, alias=$alias, active=$active, deactivationReason=$deactivationReason, ssin=$ssin, maidenName=$maidenName, spouseName=$spouseName, partnerName=$partnerName, personalStatus=$personalStatus, dateOfBirth=$dateOfBirth, dateOfDeath=$dateOfDeath, placeOfBirth=$placeOfBirth, placeOfDeath=$placeOfDeath, deceased=$deceased, education=$education, profession=$profession, note=$note, administrativeNote=$administrativeNote, nationality=$nationality, race=$race, ethnicity=$ethnicity, picture=$picture, externalId=$externalId, publicKey=$publicKey, partnerships=$partnerships, patientHealthCareParties=$patientHealthCareParties, patientProfessions=$patientProfessions, parameters=$parameters, properties=$properties, systemMetaData=$systemMetaData]';
+      'Patient[id=$id, rev=$rev, identifiers=$identifiers, created=$created, modified=$modified, author=$author, responsible=$responsible, labels=$labels, codes=$codes, endOfLife=$endOfLife, deletionDate=$deletionDate, firstName=$firstName, lastName=$lastName, names=$names, companyName=$companyName, languages=$languages, addresses=$addresses, civility=$civility, gender=$gender, birthSex=$birthSex, mergeToPatientId=$mergeToPatientId, mergedIds=$mergedIds, alias=$alias, active=$active, deactivationReason=$deactivationReason, ssin=$ssin, maidenName=$maidenName, spouseName=$spouseName, partnerName=$partnerName, personalStatus=$personalStatus, dateOfBirth=$dateOfBirth, dateOfDeath=$dateOfDeath, placeOfBirth=$placeOfBirth, placeOfDeath=$placeOfDeath, deceased=$deceased, education=$education, profession=$profession, note=$note, administrativeNote=$administrativeNote, nationality=$nationality, race=$race, ethnicity=$ethnicity, picture=$picture, externalId=$externalId, partnerships=$partnerships, patientHealthCareParties=$patientHealthCareParties, patientProfessions=$patientProfessions, parameters=$parameters, properties=$properties, systemMetaData=$systemMetaData]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -647,9 +642,6 @@ class Patient {
     if (externalId != null) {
       json[r'externalId'] = externalId;
     }
-    if (publicKey != null) {
-      json[r'publicKey'] = publicKey;
-    }
     json[r'partnerships'] = partnerships;
     json[r'patientHealthCareParties'] = patientHealthCareParties;
     json[r'patientProfessions'] = patientProfessions;
@@ -728,7 +720,6 @@ class Patient {
         ethnicity: mapValueOfType<String>(json, r'ethnicity'),
         picture: mapValueOfType<String>(json, r'picture'),
         externalId: mapValueOfType<String>(json, r'externalId'),
-        publicKey: mapValueOfType<String>(json, r'publicKey'),
         partnerships: Partnership.listFromJson(json[r'partnerships'])!,
         patientHealthCareParties: PatientHealthCareParty.listFromJson(json[r'patientHealthCareParties'])!,
         patientProfessions: CodingReference.listFromJson(json[r'patientProfessions'])!,

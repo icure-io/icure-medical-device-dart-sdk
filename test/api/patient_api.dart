@@ -3,35 +3,173 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:icure_dart_sdk/api.dart' as base_api;
 import 'package:crypton/crypton.dart';
 import 'package:icure_medical_device_dart_sdk/api.dart';
-import 'package:icure_medical_device_dart_sdk/utils/net_utils.dart';
 import 'package:pointycastle/export.dart' as pointy;
 import "package:test/test.dart";
 import 'package:uuid/uuid.dart';
 import 'package:uuid/uuid_util.dart';
 
-import '../utils/test_utils.dart';
+import '../utils/test_utils_backend.dart';
+
+const int DB_PORT = 15984;
+const int AS_PORT = 16044;
+const adminHash = "{R0DLKxxRDxdtpfY542gOUZbvWkfv1KWO9QOi9yvr/2c=}39a484cbf9057072623177422172e8a173bd826d68a2b12fa8e36ff94a44a0d7";
+final Uuid uuid = Uuid();
+// final TestBackend backend = DockerTestBackend.getInstance(DB_PORT, AS_PORT, "icure", "icure", "admin", "admin");
+final TestBackend backend = RemoteTestBackend.getInstance(Platform.environment["KRAKEN_USR"]!, Platform.environment["KRAKEN_PWD"]!);
+
+Future<MedTechApi> createPatientWithUserAndApi(MedTechApi initialApi) async {
+  final userKeyPair = generateRandomPrivateAndPublicKeyPair();
+
+  final Patient patient = Patient(
+      firstName: 'John',
+      lastName: 'Doe',
+      systemMetaData: new SystemMetaDataOwnerEncrypted(
+          publicKey: userKeyPair.item2
+      )
+  );
+
+  // When
+  final Patient? createdPatient = await initialApi.patientApi.createOrModifyPatient(patient);
+  var idUser = uuid.v4(options: {'rng': UuidUtil.cryptoRNG});
+  final User? createdUser = await initialApi.userApi
+      .createOrModifyUser(
+      new User(
+          id: idUser,
+          login: idUser.substring(0, 8),
+          patientId: createdPatient!.id,
+          passwordHash: adminHash
+      )
+  );
+
+  final delegatedPatient = await initialApi.patientApi.giveAccessTo(createdPatient, createdPatient.id!);
+
+  return await MedTechApiBuilder.newBuilder()
+      .withICureBasePath(backend.iCureURL)
+      .withUserName(createdUser!.login!)
+      .withPassword("admin")
+      .addKeyPair(createdPatient.id!, userKeyPair.item1.keyFromHexString())
+      .build();
+
+}
+
+Future<MedTechApi> createHCPWithUserAndApi(MedTechApi initialApi) async {
+  final userKeyPair = generateRandomPrivateAndPublicKeyPair();
+
+  final HealthcareProfessional hcp = HealthcareProfessional(
+      firstName: 'John',
+      lastName: 'Doe',
+      systemMetaData: new SystemMetaDataOwner(
+          publicKey: userKeyPair.item2
+      )
+  );
+
+  // When
+  final HealthcareProfessional? createdHCP = await initialApi.healthcareProfessionalApi.createOrModifyHealthcareProfessional(hcp);
+  var idUser = uuid.v4(options: {'rng': UuidUtil.cryptoRNG});
+  final User? createdUser = await initialApi.userApi
+      .createOrModifyUser(
+      new User(
+          id: idUser,
+          login: idUser.substring(0, 8),
+          healthcarePartyId: createdHCP!.id,
+          passwordHash: adminHash
+      )
+  );
+
+  return await MedTechApiBuilder.newBuilder()
+      .withICureBasePath(backend.iCureURL)
+      .withUserName(createdUser!.login!)
+      .withPassword("admin")
+      .addKeyPair(createdHCP.id!, userKeyPair.item1.keyFromHexString())
+      .build();
+}
 
 void main() {
-  final Uuid uuid = Uuid();
 
-  Future<MedTechApi> medtechApi() async {
-    return await TestUtils.medtechApi();
-  }
+  final userLogin = "hcp-${uuid.v4(options: {'rng': UuidUtil.cryptoRNG})}-delegate";
+
+  HealthcareProfessional? delegateHcp;
+  String hcpPrivateKey = "";
+  MedTechApi? api;
 
   HealthcareElement getHealthElementDto() => HealthcareElement(note: 'Premature optimization is the root of all evil');
 
   Patient getPatient() => Patient(firstName: 'John', lastName: 'Doe', note: 'Premature optimization is the root of all evil');
 
+  setUpAll(() async {
+    await backend.init();
+
+    final client = base_api.ApiClient.basic(backend.iCureURL, backend.iCureUser, backend.iCurePwd);
+    final hcpKeys = generateRandomPrivateAndPublicKeyPair();
+    final initialHcp = await base_api.HealthcarePartyApi(client).createHealthcareParty(
+        new base_api.HealthcarePartyDto(id: uuid.v4(), publicKey: hcpKeys.item2, firstName: "test", lastName: "test")
+    );
+    assert(initialHcp != null);
+    final tmpUserLogin = "hcp-${uuid.v4(options: {'rng': UuidUtil.cryptoRNG})}-delegate";
+    final user = await base_api.UserApi(client).createUser(
+        new base_api.UserDto(
+            id: "user-${uuid.v4(options: {'rng': UuidUtil.cryptoRNG})}-hcp",
+            login: tmpUserLogin,
+            status: base_api.UserDtoStatusEnum.ACTIVE,
+            passwordHash: adminHash,
+            healthcarePartyId: initialHcp!.id
+        )
+    );
+
+    expect(user != null, true);
+
+    final initialApi = await MedTechApiBuilder.newBuilder()
+        .withICureBasePath(backend.iCureURL)
+        .withUserName(tmpUserLogin)
+        .withPassword("admin")
+        .addKeyPair(initialHcp.id, hcpKeys.item1.keyFromHexString())
+        .build();
+
+    final professionalKeys = generateRandomPrivateAndPublicKeyPair();
+    hcpPrivateKey = professionalKeys.item1;
+    final hcpToAdd = new HealthcareProfessional(
+      firstName: "Svlad",
+      lastName: "Cjelli",
+      systemMetaData: new SystemMetaDataOwner(
+        publicKey: professionalKeys.item2
+      )
+    );
+
+    delegateHcp = await initialApi.healthcareProfessionalApi.createOrModifyHealthcareProfessional(hcpToAdd);
+
+    final hcpUser = await initialApi.userApi.createOrModifyUser(
+        new User(
+            id: uuid.v4(options: {'rng': UuidUtil.cryptoRNG}),
+            login: userLogin,
+            status: UserStatus.ACTIVE,
+            passwordHash: adminHash,
+            healthcarePartyId: delegateHcp!.id
+        )
+    );
+
+    api = await MedTechApiBuilder.newBuilder()
+        .withICureBasePath(backend.iCureURL)
+        .withUserName(userLogin)
+        .withPassword("admin")
+        .addKeyPair(delegateHcp!.id!, hcpPrivateKey.keyFromHexString())
+        .build();
+
+    print("Successfully set up test backend!");
+  });
+
   group('tests for PatientApi', () {
     test('test createPatient', () async {
       // Init
-      final MedTechApi api = await medtechApi();
+      expect(api != null, true);
       final Patient patient = getPatient();
+      final userKeyPair = generateRandomPrivateAndPublicKeyPair();
+      patient.systemMetaData = SystemMetaDataOwnerEncrypted(publicKey: userKeyPair.item2);
 
       // When
-      final Patient? createdPatient = await api.patientApi.createOrModifyPatient(patient);
+      final Patient? createdPatient = await api!.patientApi.createOrModifyPatient(patient);
 
       // Then
       expect(createdPatient!.id != null, true);
@@ -42,12 +180,12 @@ void main() {
 
     test('test getPatient', () async {
       // Init
-      final MedTechApi api = await medtechApi();
+      expect(api != null, true);
       final Patient patient = getPatient();
 
       // When
-      final Patient? createdPatient = await api.patientApi.createOrModifyPatient(patient);
-      final Patient? gotPatient = await api.patientApi.getPatient(createdPatient!.id!);
+      final Patient? createdPatient = await api!.patientApi.createOrModifyPatient(patient);
+      final Patient? gotPatient = await api!.patientApi.getPatient(createdPatient!.id!);
 
       // Then
       expect(createdPatient.id, gotPatient!.id);
@@ -58,185 +196,130 @@ void main() {
 
     test('test filterPatient', () async {
       // Init
-      final MedTechApi api = await medtechApi();
+      expect(api != null, true);
 
       // When
-      var patients = (await api.patientApi.filterPatients(PatientByHcPartyNameContainsFuzzyFilter(
-                  healthcarePartyId: (await api.userApi.getLoggedUser())!.healthcarePartyId!, searchString: "maes")))
+      var patients = (await api!.patientApi.filterPatients(PatientByHcPartyFilter(
+                  healthcarePartyId: (await api!.userApi.getLoggedUser())!.healthcarePartyId!)))
               ?.rows ??
           [];
 
-      expect(patients.length == 3, true);
+      expect(patients.length == 2, true);
 
       // Then
     });
 
     test('test createPatient with crypto', () async {
       // Init
-      final MedTechApi api = await medtechApi();
-      final Patient patient = Patient(firstName: 'John', lastName: 'Doe');
+      expect(api != null, true);
 
-      // When
-      final Patient? createdPatient = await api.patientApi.createOrModifyPatient(patient);
-      var idUser = uuid.v4(options: {'rng': UuidUtil.cryptoRNG});
-      var passwordUser = uuid.v4(options: {'rng': UuidUtil.cryptoRNG});
-      final User? createdUser = await api.userApi
-          .createOrModifyUser(new User(id: idUser, login: idUser.substring(0, 8), patientId: createdPatient!.id, passwordHash: passwordUser));
+      final patMedtechApi = await createPatientWithUserAndApi(api!);
 
-      var patMedtechApi = MedTechApiBuilder()
-          .withICureBasePath('https://kraken.icure.dev')
-          .withUserName(createdUser!.login!)
-          .withPassword(passwordUser)
-          .withAuthServerUrl("https://msg-gw.icure.cloud/km")
-          .withAuthProcessId("f0ced6c6-d7cb-4f78-841e-2674ad09621e")
-          .build();
+      final createdUser = (await patMedtechApi.userApi.getLoggedUser())!;
+      final createdPatient = (await patMedtechApi.patientApi.getPatient(createdUser.patientId!))!;
 
-      final patUser = await retry(() => patMedtechApi.userApi.getLoggedUser());
-      final keyPair = generateRandomPrivateAndPublicKeyPair();
-      final pat = await patMedtechApi.patientApi.getPatient(patUser!.patientId!);
+      createdPatient.note = "Secret";
+      final modPat = (await patMedtechApi.patientApi.createOrModifyPatient(createdPatient))!;
 
-      pat!.publicKey = keyPair.item2;
-
-      final modPat = await patMedtechApi.patientApi.createOrModifyPatient(pat);
-      patMedtechApi = MedTechApiBuilder()
-          .withICureBasePath('https://kraken.icure.dev')
-          .withUserName(createdUser.login!)
-          .withPassword(passwordUser)
-          .addKeyPair(pat.id!, keyPair.item1.keyFromHexString())
-          .withAuthServerUrl("https://msg-gw.icure.cloud/km")
-          .withAuthProcessId("f0ced6c6-d7cb-4f78-841e-2674ad09621e")
-          .build();
-
-      final pat2 = await api.patientApi.giveAccessTo(modPat!, modPat.id!);
-      pat2.note = "Secret";
-      final modPat2 = (await patMedtechApi.patientApi.createOrModifyPatient(pat2))!;
-
-      patMedtechApi.crypto.clearCachesFor(modPat2.id!);
-      api.crypto.clearCachesFor(modPat2.id!);
+      patMedtechApi.crypto.clearCachesFor(modPat.id!);
+      api!.crypto.clearCachesFor(modPat.id!);
 
       // Then
-      expect(modPat2.id, pat2.id);
-      expect(modPat2.firstName, pat2.firstName);
-      expect(modPat2.lastName, pat2.lastName);
-      expect(modPat2.note, pat2.note);
+      expect(modPat.id, createdPatient.id);
+      expect(modPat.firstName, createdPatient.firstName);
+      expect(modPat.lastName, createdPatient.lastName);
+      expect(modPat.note, createdPatient.note);
 
       // Init
       final HealthcareElement hE = getHealthElementDto();
-      final createdHealthElement = await patMedtechApi.healthcareElementApi.createOrModifyHealthcareElement(modPat2.id!, hE);
+      final createdHealthElement = await patMedtechApi.healthcareElementApi.createOrModifyHealthcareElement(modPat.id!, hE);
 
       final filteredHealthElement =
           await patMedtechApi.healthcareElementApi.filterHealthcareElement(HealthcareElementByIdsFilter(ids: {createdHealthElement!.id!}));
 
       assert(filteredHealthElement!.rows.length == 1);
     });
-  });
 
-  test("Sharing delegation patient to HCP", () async {
-    final hcpApi = await TestUtils.medtechApi(credsFilePath: ".hkCredentials", hcpId: "171f186a-7a2a-40f0-b842-b486428c771b");
-    final patApi = await TestUtils.medtechApi(credsFilePath: ".hkPatientCredentials", hcpId: "a37e0a71-07d2-4414-9b2b-2120ae9a16fc");
+    test("Sharing delegation patient to HCP", () async {
 
-    final currentUser = await patApi.userApi.getLoggedUser();
-    final currentHcp = await hcpApi.userApi.getLoggedUser();
+      // Init: Creation of user and Hcp
+      final patMedtechApi = await createPatientWithUserAndApi(api!);
+      final createdUser = (await patMedtechApi.userApi.getLoggedUser())!;
+      final createdPatient = (await patMedtechApi.patientApi.getPatient(createdUser.patientId!))!;
 
-    final currentPatient = await patApi.patientApi.getPatient(currentUser!.patientId!);
+      final hcpMedtechApi = await createHCPWithUserAndApi(api!);
+      final hcpUser = (await hcpMedtechApi.userApi.getLoggedUser())!;
 
-    final delegatedPatient = await patApi.patientApi.giveAccessTo(currentPatient!, currentHcp!.healthcarePartyId!);
-    assert(delegatedPatient.systemMetaData!.delegations.containsKey(currentHcp.healthcarePartyId!));
-    assert(delegatedPatient.systemMetaData!.encryptionKeys.containsKey(currentHcp.healthcarePartyId!));
+      final delegatedPatient = await patMedtechApi.patientApi.giveAccessTo(createdPatient, hcpUser.healthcarePartyId!);
+      assert(delegatedPatient.systemMetaData!.delegations.containsKey(hcpUser.healthcarePartyId!));
+      assert(delegatedPatient.systemMetaData!.encryptionKeys.containsKey(hcpUser.healthcarePartyId!));
 
-    final hcpCurrentPatient = await hcpApi.patientApi.getPatient(currentUser.patientId!);
-    assert(hcpCurrentPatient != null);
-  });
+      final hcpCurrentPatient = await hcpMedtechApi.patientApi.getPatient(createdUser.patientId!);
+      assert(hcpCurrentPatient != null);
+    });
 
-  test('Update patient lastname and first name', () async {
-    // Init
-    final patApi = await TestUtils.medtechApi(credsFilePath: ".hkPatientCredentials", hcpId: "a37e0a71-07d2-4414-9b2b-2120ae9a16fc");
-    final patUser = await patApi.userApi.getLoggedUser();
-    final patient = await patApi.patientApi.getPatient(patUser!.dataOwnerId()!);
+    test('Update patient lastname and first name', () async {
+      // Init
+      final patMedtechApi = await createPatientWithUserAndApi(api!);
+      final createdUser = (await patMedtechApi.userApi.getLoggedUser())!;
+      final patient = (await patMedtechApi.patientApi.getPatient(createdUser.patientId!))!;
 
-    print("BEFORE CHANGE :");
-    print("First name: ${patient!.firstName}");
-    print("Last name: ${patient.lastName}");
-    print("---");
+      print("BEFORE CHANGE :");
+      print("First name: ${patient!.firstName}");
+      print("Last name: ${patient.lastName}");
+      print("---");
 
-    // When
-    patient.lastName = uuid.v4(options: {'rng': UuidUtil.cryptoRNG}).substring(0, 8);
-    patient.firstName = uuid.v4(options: {'rng': UuidUtil.cryptoRNG}).substring(0, 8);
+      // When
+      patient.lastName = uuid.v4(options: {'rng': UuidUtil.cryptoRNG}).substring(0, 8);
+      patient.firstName = uuid.v4(options: {'rng': UuidUtil.cryptoRNG}).substring(0, 8);
 
-    final updatedPatient = await patApi.patientApi.createOrModifyPatient(patient);
-    final gotPatient = await patApi.patientApi.getPatient(patUser.dataOwnerId()!);
+      final updatedPatient = await patMedtechApi.patientApi.createOrModifyPatient(patient);
+      final gotPatient = await patMedtechApi.patientApi.getPatient(createdUser.dataOwnerId()!);
 
-    // Then
-    print("AFTER CHANGE :");
-    print("First name: ${updatedPatient!.firstName}");
-    print("Last name: ${updatedPatient.lastName}");
-    print("---");
+      // Then
+      print("AFTER CHANGE :");
+      print("First name: ${updatedPatient!.firstName}");
+      print("Last name: ${updatedPatient.lastName}");
+      print("---");
 
-    expect(updatedPatient.firstName, equals(patient.firstName));
-    expect(updatedPatient.lastName, equals(patient.lastName));
+      expect(updatedPatient.firstName, equals(patient.firstName));
+      expect(updatedPatient.lastName, equals(patient.lastName));
 
-    print("AFTER GET :");
-    print("First name: ${gotPatient!.firstName}");
-    print("Last name: ${gotPatient.lastName}");
-    print("---");
+      print("AFTER GET :");
+      print("First name: ${gotPatient!.firstName}");
+      print("Last name: ${gotPatient.lastName}");
+      print("---");
 
-    expect(updatedPatient.lastName, equals(gotPatient.lastName));
-    expect(updatedPatient.firstName, equals(gotPatient.firstName));
-  });
+      expect(updatedPatient.lastName, equals(gotPatient.lastName));
+      expect(updatedPatient.firstName, equals(gotPatient.firstName));
+    });
 
-  test("Test eRSA encryption/decryption", () async {
-    var fileUri = Uri.file("test/resources/keys/a5af2d04-6ecc-44e8-8c93-38b9748d8d62-icc-priv.2048.key", windows: false);
-    var keyFile = File.fromUri(fileUri);
-    final privateKey = (await keyFile.readAsString(encoding: utf8)).trim().keyFromHexString();
+    test("Test eRSA encryption/decryption", () async {
+      var fileUri = Uri.file("test/resources/keys/a5af2d04-6ecc-44e8-8c93-38b9748d8d62-icc-priv.2048.key", windows: false);
+      var keyFile = File.fromUri(fileUri);
+      final privateKey = (await keyFile.readAsString(encoding: utf8)).trim().keyFromHexString();
 
-    final keyPair = RSAKeypair(RSAPrivateKey.fromString(base64.encoder.convert(privateKey)));
-    final publicKey = RSAPublicKey.fromString(base64.encoder.convert("xxx".fromHexString()));
-    final encryptorForDelegate = pointy.OAEPEncoding(pointy.RSAEngine())
-      ..init(true, pointy.PublicKeyParameter<pointy.RSAPublicKey>(publicKey.asPointyCastle));
+      final keyPair = RSAKeypair(RSAPrivateKey.fromString(base64.encoder.convert(privateKey)));
+      final publicKey = RSAPublicKey.fromString(base64.encoder.convert("xxx".fromHexString()));
+      final encryptorForDelegate = pointy.OAEPEncoding(pointy.RSAEngine())
+        ..init(true, pointy.PublicKeyParameter<pointy.RSAPublicKey>(publicKey.asPointyCastle));
 
-    final aesKey = Uint8List.fromList(List<int>.generate(32, (i) => random.nextInt(256)));
+      final aesKey = Uint8List.fromList(List<int>.generate(32, (i) => random.nextInt(256)));
 
-    final encrypted = encryptorForDelegate.process(aesKey).toHexString();
-    final decryptor = pointy.OAEPEncoding(pointy.RSAEngine())
-      ..init(false, pointy.PrivateKeyParameter<pointy.RSAPrivateKey>(keyPair.privateKey.asPointyCastle));
-    final decrypted = decryptor.process(encrypted.fromHexString());
+      final encrypted = encryptorForDelegate.process(aesKey).toHexString();
+      final decryptor = pointy.OAEPEncoding(pointy.RSAEngine())
+        ..init(false, pointy.PrivateKeyParameter<pointy.RSAPrivateKey>(keyPair.privateKey.asPointyCastle));
+      final decrypted = decryptor.process(encrypted.fromHexString());
 
-    var aesKeyText = aesKey.toHexString();
-    var decryptedText = decrypted.toHexString();
+      var aesKeyText = aesKey.toHexString();
+      var decryptedText = decrypted.toHexString();
 
-    final privateKeyAsHex =
-        base64Decode(keyPair.privateKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
-    final publicKeyAsHex =
-        base64Decode(keyPair.publicKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
+      final privateKeyAsHex =
+          base64Decode(keyPair.privateKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
+      final publicKeyAsHex =
+          base64Decode(keyPair.publicKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
 
-    assert(aesKeyText == decryptedText);
-  });
-
-  test("Test eRSA encryption/decryption", () async {
-    var fileUri = Uri.file("test/resources/keys/a5af2d04-6ecc-44e8-8c93-38b9748d8d62-icc-priv.2048.key", windows: false);
-    var keyFile = File.fromUri(fileUri);
-    final privateKey = (await keyFile.readAsString(encoding: utf8)).trim().keyFromHexString();
-
-    final keyPair = RSAKeypair(RSAPrivateKey.fromString(base64.encoder.convert(privateKey)));
-    final publicKey = RSAPublicKey.fromString(base64.encoder.convert("xxx".fromHexString()));
-    final encryptorForDelegate = pointy.OAEPEncoding(pointy.RSAEngine())
-      ..init(true, pointy.PublicKeyParameter<pointy.RSAPublicKey>(publicKey.asPointyCastle));
-
-    final aesKey = Uint8List.fromList(List<int>.generate(32, (i) => random.nextInt(256)));
-
-    final encrypted = encryptorForDelegate.process(aesKey).toHexString();
-    final decryptor = pointy.OAEPEncoding(pointy.RSAEngine())
-      ..init(false, pointy.PrivateKeyParameter<pointy.RSAPrivateKey>(keyPair.privateKey.asPointyCastle));
-    final decrypted = decryptor.process(encrypted.fromHexString());
-
-    var aesKeyText = aesKey.toHexString();
-    var decryptedText = decrypted.toHexString();
-
-    final privateKeyAsHex =
-        base64Decode(keyPair.privateKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
-    final publicKeyAsHex =
-        base64Decode(keyPair.publicKey.toPEM().replaceAllMapped(RegExp(r'-----.+?-----'), (match) => '').replaceAll('\n', '')).toHexString();
-
-    assert(aesKeyText == decryptedText);
+      assert(aesKeyText == decryptedText);
+    });
   });
 }

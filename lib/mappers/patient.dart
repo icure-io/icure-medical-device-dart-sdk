@@ -79,8 +79,8 @@ extension PatientDtoMapper on DecryptedPatientDto {
           ethnicity: this.ethnicity,
           picture: this.picture,
           externalId: this.externalId,
-          publicKey: this.publicKey,
           systemMetaData: SystemMetaDataOwnerEncrypted(
+            publicKey: this.publicKey,
             hcPartyKeys: this.hcPartyKeys,
             privateKeyShamirPartitions: this.privateKeyShamirPartitions,
             secretForeignKeys: this.secretForeignKeys.toList(),
@@ -161,7 +161,7 @@ extension PatientMapper on Patient {
         ethnicity: this.ethnicity,
         picture: this.picture,
         externalId: this.externalId,
-        publicKey: this.publicKey,
+        publicKey: this.systemMetaData?.publicKey,
         hcPartyKeys: this.systemMetaData?.hcPartyKeys ?? const {},
         privateKeyShamirPartitions: this.systemMetaData?.privateKeyShamirPartitions ?? const {},
         secretForeignKeys: this.systemMetaData?.secretForeignKeys.toSet() ?? {},
@@ -174,7 +174,7 @@ extension PatientMapper on Patient {
       );
 
   DataOwnerDto toDataOwnerDto() =>
-      DataOwnerDto(DataOwnerType.patient, this.id!, this.systemMetaData?.hcPartyKeys ?? const {}, publicKey: this.publicKey, rev: this.rev);
+      DataOwnerDto(DataOwnerType.patient, this.id!, this.systemMetaData?.hcPartyKeys ?? const {}, publicKey: this.systemMetaData?.publicKey, rev: this.rev);
 }
 
 extension PatientDeactivationReasonEnumMapper on PatientDeactivationReasonEnum {

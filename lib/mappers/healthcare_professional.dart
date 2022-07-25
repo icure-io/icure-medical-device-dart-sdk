@@ -45,6 +45,7 @@ extension HealthcarePartyDtoMapper on HealthcarePartyDto {
       picture: this.picture,
       notes: this.notes,
       systemMetaData: SystemMetaDataOwner(
+        publicKey: this.publicKey,
         hcPartyKeys: this.hcPartyKeys,
         privateKeyShamirPartitions: this.privateKeyShamirPartitions,
         aesExchangeKeys: this.aesExchangeKeys,
@@ -82,6 +83,7 @@ extension HealthcareProfessionalMapper on HealthcareProfessional {
     picture: this.picture,
     notes: this.notes,
     hcPartyKeys: this.systemMetaData?.hcPartyKeys ?? const {},
+    publicKey: this.systemMetaData?.publicKey,
     privateKeyShamirPartitions: this.systemMetaData?.privateKeyShamirPartitions ?? const {},
     aesExchangeKeys: this.systemMetaData?.aesExchangeKeys ?? const {},
     transferKeys: this.systemMetaData?.transferKeys ?? const {},

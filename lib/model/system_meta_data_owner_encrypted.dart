@@ -13,6 +13,7 @@ part of icure_medical_device_dart_sdk.api;
 class SystemMetaDataOwnerEncrypted {
   /// Returns a new [SystemMetaDataOwnerEncrypted] instance.
   SystemMetaDataOwnerEncrypted({
+    this.publicKey = null,
     this.hcPartyKeys = const {},
     this.privateKeyShamirPartitions = const {},
     this.secretForeignKeys = const [],
@@ -21,6 +22,8 @@ class SystemMetaDataOwnerEncrypted {
     this.encryptionKeys = const {},
     this.aesExchangeKeys = const {},
     this.transferKeys = const {}});
+
+  String? publicKey;
 
   Map<String, List<String>> hcPartyKeys;
 
@@ -42,6 +45,7 @@ class SystemMetaDataOwnerEncrypted {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SystemMetaDataOwnerEncrypted &&
+          other.publicKey == publicKey &&
           MapEquality(values: ListEquality()).equals(other.hcPartyKeys, hcPartyKeys) &&
           MapEquality().equals(other.privateKeyShamirPartitions, privateKeyShamirPartitions) &&
           ListEquality().equals(secretForeignKeys, secretForeignKeys) &&
@@ -54,6 +58,7 @@ class SystemMetaDataOwnerEncrypted {
   @override
   int get hashCode =>
       // ignore: unnecessary_parenthesis
+      (publicKey == null ? 0 : publicKey!.hashCode) +
       (hcPartyKeys.hashCode) +
       (privateKeyShamirPartitions.hashCode) +
       (secretForeignKeys.hashCode) +
@@ -65,10 +70,13 @@ class SystemMetaDataOwnerEncrypted {
 
   @override
   String toString() =>
-      'SystemMetaDataOwnerEncrypted[hcPartyKeys=$hcPartyKeys, privateKeyShamirPartitions=$privateKeyShamirPartitions, secretForeignKeys=$secretForeignKeys, cryptedForeignKeys=$cryptedForeignKeys, delegations=$delegations, encryptionKeys=$encryptionKeys, aesExchangeKeys=$aesExchangeKeys, transferKeys=$transferKeys';
+      'SystemMetaDataOwnerEncrypted[publicKey=$publicKey, hcPartyKeys=$hcPartyKeys, privateKeyShamirPartitions=$privateKeyShamirPartitions, secretForeignKeys=$secretForeignKeys, cryptedForeignKeys=$cryptedForeignKeys, delegations=$delegations, encryptionKeys=$encryptionKeys, aesExchangeKeys=$aesExchangeKeys, transferKeys=$transferKeys';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (publicKey != null) {
+      json[r'publicKey'] = publicKey;
+    }
     json[r'hcPartyKeys'] = hcPartyKeys;
     json[r'privateKeyShamirPartitions'] = privateKeyShamirPartitions;
     json[r'secretForeignKeys'] = secretForeignKeys;
@@ -99,6 +107,7 @@ class SystemMetaDataOwnerEncrypted {
       }());
 
       return SystemMetaDataOwnerEncrypted(
+        publicKey: mapValueOfType<String>(json, r'publicKey'),
         hcPartyKeys: json[r'hcPartyKeys'] == null ? const {} : mapWithListOfStringsFromJson(json[r'hcPartyKeys']),
         privateKeyShamirPartitions: mapCastOfType<String, String>(json, r'privateKeyShamirPartitions')!,
         secretForeignKeys: json[r'secretForeignKeys'] == null ? const [] : (json[r'secretForeignKeys'] as List).cast<String>(),
@@ -165,6 +174,7 @@ class SystemMetaDataOwnerEncrypted {
 
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
+    'publicKey',
     'hcPartyKeys',
     'privateKeyShamirPartitions',
     'secretForeignKeys',
